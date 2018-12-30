@@ -24,13 +24,13 @@ class Server
                     username = conn.gets.chomp + "  "
                     username = username.slice(0..2).to_sym
                     if @connected_clients[username] != nil
-                        puts "[LOG] Connection failed: #{username}. Info: #{conn}"
+                        puts "[LOG]: Connection failed: #{username}. Info: #{conn}"
                         conn.puts "Username already exists, try again"
                         username = ""
                     end
                 end
 
-                puts "[LOG] Connection established: #{username}. Info: #{conn}"
+                puts "[LOG]: Connection established: #{username}. Info: #{conn}"
                 @connected_clients[username] = conn
                 conn.puts "Connection established: #{username}. Info: #{conn}, pray for good RNG..."
 
@@ -44,7 +44,14 @@ class Server
             message = conn.gets.chomp
             roll_info = roll(message)
 
-            put_string = "#{username}:\n\t#{message}\n\t#{roll_info}"
+            put_string = "#{username}:\n\t#{message}\n\t#{roll_info}\n---------------------"
+
+            puts "[MSG]:\n#{put_string}"
+
+            if roll_info == "Invalid request"
+                @connected_clients[username].puts roll_info
+                next
+            end
 
             (@connected_clients).keys.each do |client|
                 @connected_clients[client].puts "#{put_string}"
