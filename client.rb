@@ -3,8 +3,8 @@
 require 'socket'
 
 class Client
-    def initialize(sock_addr = "localhost", sock_port = 8090)
-        @socket = TCPSocket.open(sock_addr, sock_port)
+    def initialize(socket)
+        @socket = socket
 
         @send_thread = send_request()
         @recv_thread = recv_response()
@@ -44,4 +44,22 @@ class Client
     end
 end
 
-Client.new()
+sock_addr, sock_port = "localhost", 8090
+
+if ARGV.include?("-h")|| ARGV.include?("--help")
+    show_help()
+    return
+end
+
+if ARGV.length == 2
+    sock_addr, sock_port = ARGV[0], ARGV[1]
+end
+
+begin
+    socket = TCPSocket.open(sock_addr, sock_port)
+rescue SocketError => e
+    puts "Error: #{e.message}"
+    return
+end
+
+Client.new(socket)
