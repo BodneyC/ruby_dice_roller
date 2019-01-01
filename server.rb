@@ -4,8 +4,8 @@ require 'socket'
 require './dice_roller'
 
 class Server
-    def initialize(sock_addr = "localhost", sock_port = 8090)
-        @server = TCPServer.open(sock_addr, sock_port)
+    def initialize(server)
+        @server = server
         @connected_clients = Hash.new
 
         puts "[LOG]: Server started"
@@ -60,4 +60,28 @@ class Server
     end
 end
 
-Server.new()
+if __FILE__ == $0
+    sock_addr, sock_port = "localhost", 8090
+
+    show_help = "Usage\n\t./server.rb [<address> <port>]"
+
+    if ARGV.include?("-h")|| ARGV.include?("--help")
+        puts "#{show_help}"
+        return
+    end
+
+    if ARGV.length == 2
+        sock_addr, sock_port = ARGV[0], ARGV[1].to_i
+    end
+
+    begin
+        puts "#{sock_addr}, #{sock_port}"
+        server = TCPServer.open(sock_addr, sock_port)
+    rescue SocketError => e
+        puts "Error: #{e.message}"
+        puts "#{show_help}"
+        return
+    end
+
+    Server.new(server)
+end

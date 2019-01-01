@@ -44,22 +44,28 @@ class Client
     end
 end
 
-sock_addr, sock_port = "localhost", 8090
+if __FILE__ == $0
+    sock_addr, sock_port = "localhost", 8090
 
-if ARGV.include?("-h")|| ARGV.include?("--help")
-    show_help()
-    return
+    show_help = "Usage\n\t./client.rb [<address> <port>]"
+
+    if ARGV.include?("-h")|| ARGV.include?("--help")
+        puts "#{show_help}"
+        return
+    end
+
+    if ARGV.length == 2
+        sock_addr, sock_port = ARGV[0], ARGV[1].to_i
+    end
+
+    begin
+        puts "#{sock_addr}, #{sock_port}"
+        socket = TCPSocket.open(sock_addr, sock_port)
+    rescue SocketError => e
+        puts "Error: #{e.message}"
+        puts "#{show_help}"
+        return
+    end
+
+    Client.new(socket)
 end
-
-if ARGV.length == 2
-    sock_addr, sock_port = ARGV[0], ARGV[1]
-end
-
-begin
-    socket = TCPSocket.open(sock_addr, sock_port)
-rescue SocketError => e
-    puts "Error: #{e.message}"
-    return
-end
-
-Client.new(socket)
