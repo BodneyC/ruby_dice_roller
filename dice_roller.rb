@@ -58,6 +58,10 @@ def roll(message)
     return out_string
 end
 
-def __test__
-    puts roll("1d20 + 5")
+if __FILE__ == $0
+    line = ""
+    for arg in ARGV
+        line += arg
+    end
+    puts roll line
 end
