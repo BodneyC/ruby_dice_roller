@@ -1,9 +1,7 @@
 #!/usr/bin/ruby
 
 def validate(message)
-    if message !~ /^\d+?d\d+?([+-]\d+?)*$/
-        return 1
-    end
+    return 1 if message !~ /^\d+?d\d+?([+-]\d+?)*$/
     return 0
 end
 
@@ -12,9 +10,8 @@ def roll_dice(die_num = 0, sides = 0)
     vals = []
 
     (1..die_num).each do
-        tmp_rand = rand(1..sides)
-        total += tmp_rand
-        vals << tmp_rand
+        vals << rand(1..sides)
+        total += vals.last
     end
 
     return total, vals
@@ -23,9 +20,7 @@ end
 def roll(message) 
     message = message.gsub(/\s+/, "")
 
-    if validate(message) == 1
-        return "Invalid request"
-    end
+    return "Invalid request" if validate(message) == 1
 
     # Split on [d+-] and keep
     args = message.split(/(?=[d+-])|(?<=[d+-])/)
@@ -39,29 +34,21 @@ def roll(message)
         (3...args.length).step(2).each do |idx|
             if args[idx] == "+"
                 total += args[idx + 1]
-            else
+            else # if "-"
                 total -= args[idx + 1]
             end
         end
     end
 
     out_string = total.to_s 
-
-    if args[0] > 1
-        out_string += " [" + roll_vals.join(" + ") + "]"
-    end
-
-    if args.size > 3
-        out_string += " (" + args.slice(3..-1).join(" ") + ")"
-    end
+    out_string += " [" + roll_vals.join(" + ") + "]" if args[0] > 1
+    out_string += " (" + args.slice(3..-1).join(" ") + ")" if args.size > 3
 
     return out_string
 end
 
 if __FILE__ == $0
     line = ""
-    for arg in ARGV
-        line += arg
-    end
+    ARGV.each { |arg| line += arg }
     puts roll line
 end
