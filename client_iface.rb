@@ -6,51 +6,50 @@ Bundler.require(:default)
 
 require './client_code'
 
-width = 80
-height = 20
+$sc_width = 90
+$sc_height = 30
 
 outline = RuTui::Box.new({ :x => 2, :y => 1, 
-	:width => width - 2, :height => height - 2 })
+	:width => $sc_width - 2, :height => $sc_height - 2 })
 
 def make_text y, w, txt
-	RuTui::Text.new({ :x => (width / 2) - (txt.length / 2), :y => y, :width => w, :text => txt})
+	RuTui::Text.new({ :x => ($sc_width / 2) - (txt.length / 2), :y => y, :width => w, :text => txt})
 end
 
 def make_textfield x, y, w, txt
 	RuTui::Textfield.new({ 
 		:x => x, :y => y, 
-		:pixel => bg_pixel, :focus_pixel => focus_pixel,
+		:pixel => RuTui::Pixel.new(12, 44, "-"), :focus_pixel => RuTui::Pixel.new(15, 64, "-"),
 		:width => w, :text => txt })
 end
-
-# May all need to be Pixel.new()
-bg_pixel = RuTui::Pixel.new(12, 44, "-"), focus_pixel = RuTui::Pixel.new(15, 64, "-")
 
 ################ Config Window ################
 conf_screen = RuTui::Screen.new
 conf_screen.add_static outline
 
 @conf_boxes = []
-conf_screen.add_static make_text((height / 2) - 7, width / 2, "Address:")
-@conf_boxes << make_textfield(width / 4, (height / 2) - 5, width / 2, "localhost")
+conf_screen.add_static make_text(($sc_height / 2) - 8, $sc_width / 2, "Address:")
+@conf_boxes << make_textfield($sc_width / 4, ($sc_height / 2) - 6, $sc_width / 2, "localhost")
 
-conf_screen.add_static make_text((height / 2) - 3, width / 2, "Port:")
-@conf_boxes << make_textfield(width / 4, (height / 2) - 1, width / 2, "8090")
+conf_screen.add_static make_text(($sc_height / 2) - 4, $sc_width / 2, "Port:")
+@conf_boxes << make_textfield($sc_width / 4, ($sc_height / 2) - 2, $sc_width / 2, "8090")
 
-conf_screen.add_static make_text((height / 2) + 1, width / 2, "Username:")
-@conf_boxes << make_textfield(width / 4, (height / 2) + 3, width / 2, "")
+conf_screen.add_static make_text(($sc_height / 2) + 0, $sc_width / 2, "Username:")
+@conf_boxes << make_textfield($sc_width / 4, ($sc_height / 2) + 2, $sc_width / 2, "")
 
-conf_screen.add_static make_text((height / 2) + 5, width / 2, "Password:")
-@conf_boxes << RuTui.Textfield.new({ 
-	:x => width / 4, :y => (height / 2) + 7, 
-	:pixel => bg_pixel, :focus_pixel => focus_pixel,
-	:width => width / 2, :text => "", :password => true 
+conf_screen.add_static make_text(($sc_height / 2) + 4, $sc_width / 2, "Password:")
+@conf_boxes << RuTui::Textfield.new({ 
+	:x => $sc_width / 4, :y => ($sc_height / 2) + 6, 
+	:pixel => RuTui::Pixel.new(12, 44, "-"), :focus_pixel => RuTui::Pixel.new(15, 64, "-"),
+	:width => $sc_width / 2, :text => "", :password => true 
 })
 
 leave = focus = 0
-@err_field = make_textfield((width / 2) - ("Connection Failed".length / 2), (height / 2) - 8, width / 2, "Connection Failed")
+@err_field = make_textfield(($sc_width / 2) - ("Connection Failed".length / 2), ($sc_height / 2) - 8, $sc_width / 2, "Connection Failed")
 
 @conf_boxes.each { |box| conf_screen.add box }
+@conf_boxes[0].set_text "localhost"
+@conf_boxes[1].set_text "8090"
 
 RuTui::ScreenManager.add :config, conf_screen
 
@@ -60,10 +59,10 @@ main_screen.add_static outline
 
 # Text box feed
 @tb = []
-@tb_lines = (0...height - 4)
-@tb_lines.each { |i| @tb.push(RuTui::Text.new({ :x => 2, :y => i + 2, :text => "", :width => 30 })) }
+@tb_lines = (0...$sc_height - 6)
+@tb_lines.each { |i| @tb.push(RuTui::Text.new({ :x => 4, :y => i + 2, :text => "", :width => $sc_width - 6 })) }
 # Text input field
-@tf = RuTui::Textfield.new({ :x => 2, :y => height - 2, :width => width - 4, :pixel => bg_pixel, :focus_pixel => focus_pixel })
+@tf = RuTui::Textfield.new({ :x => 4, :y => $sc_height - 4, :width => $sc_width - 6, :pixel => RuTui::Pixel.new(12, 44, "-"), :focus_pixel => RuTui::Pixel.new(15, 64, "-") })
 
 main_screen.add @tf
 @tb_lines.each { |i| main_screen.add @tb[i] }
@@ -71,6 +70,8 @@ main_screen.add @tf
 RuTui::ScreenManager.add :main, main_screen
 
 ############## Running the thing ##############
+marker = @tb_lines.last
+
 def populate_textbox 
 	if @out_text.size < @tb_lines.last
 		for i in 0...@out_text.size do
@@ -81,12 +82,14 @@ def populate_textbox
 	end
 end
 
+client_code = socket = nil
+
 @out_text = []
-marker = @tb_lines.last
 step = marker / 3
+pswd_check = 0
 
 # Thread used to update the screen 
-tb_thre = Thread.new do
+tb_thr = Thread.new do
 	while RuTui::ScreenManager.get_current != :main
 		break if leave == 1
 		sleep 0.5 
@@ -96,16 +99,29 @@ tb_thre = Thread.new do
 		loop do
 			break if leave == 1
 			# Unsureity
-			out_text << client_code.recv_response.split("\n")
 			populate_textbox
 			RuTui::ScreenManager.draw
 		end
 	end
+end
 
+txt_thr = Thread.new do
+	while RuTui::ScreenManager.get_current != :main
+		break if leave == 1
+		sleep 0.5 
+	end
+
+	if leave == 0
+		loop do
+			break if leave == 1
+			# Split by element
+			tmp_txt = client_code.recv_response.to_s
+			out_text << tmp_txt
+		end
+	end
 end
 
 @conf_boxes[0].set_focus
-client_code = socket = nil
 
 RuTui::ScreenManager.set_current :config
 RuTui::ScreenManager.loop({ :autodraw => true }) do |key|
@@ -133,13 +149,19 @@ RuTui::ScreenManager.loop({ :autodraw => true }) do |key|
 			@conf_boxes[focus].set_focus
 			next
 		end
+
+		if key == :esc
+			@conf_boxes[focus].set_text ""
+			@conf_boxes[focus].create
+			next
+		end
 		
 		if key == :enter
 			# Make constructor boolean
 			if socket.nil?
 	        	begin
-	        	    socket = TCPSocket.open(@conf_boxes[0], @conf_boxes[1])
-					client_code = new Client(socket)
+					socket = TCPSocket.open(@conf_boxes[0].get_text, @conf_boxes[1].get_text)
+					client_code = Client.new(socket)
 	        	rescue SocketError => e
 					@err_field.set_text "Incorrect addr/port"
 					conf_screen.add @err_field
@@ -147,10 +169,15 @@ RuTui::ScreenManager.loop({ :autodraw => true }) do |key|
 				end
 			end
 
-			if socket 
-				if client_code.password @conf_boxes[3]
-					if client_code.username @conf_boxes[2]
-						RuTui::ScreenManager.set_current = :main
+			if socket
+				if pswd_check == 0
+					pswd_check = client_code.password(@conf_boxes[3].get_text)
+				end
+				if pswd_check == 1
+					if client_code.username(@conf_boxes[2].get_text) == 1
+						RuTui::ScreenManager.set_current :main
+						@conf_boxes[focus].take_focus
+						@tf.set_focus
 					else
 						@err_field.set_text "Incorrect Username"
 						@conf_boxes[2].set_text ""
@@ -167,7 +194,7 @@ RuTui::ScreenManager.loop({ :autodraw => true }) do |key|
 				end
 			end
 			next
-		else
+		end
 
 		@conf_boxes[focus].write key
 
@@ -177,8 +204,8 @@ RuTui::ScreenManager.loop({ :autodraw => true }) do |key|
 		elsif key == :up
 			marker + step > @tb_lines.last ? marker = @tb_lines.last : marker += step
 		elsif key == :enter
-			client_code.send_request @tf.text	
- 			@tf.text = ""
+			client_code.send_request @tf.get_text	
+ 			@tf.set_text ""
  			@tf.create
 		else
 			@tf.write key 
@@ -186,6 +213,7 @@ RuTui::ScreenManager.loop({ :autodraw => true }) do |key|
 	end
 end
 
-tb_thre.join
+tb_thr.join
+txt_thr.join
 
 print RuTui::Ansi.clear_color + RuTui::Ansi.clear

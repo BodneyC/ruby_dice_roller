@@ -12,13 +12,13 @@ class Client
     def password password
         @password = password
         @socket.puts password
-        return socket.gets.chomp.to_i
+        return @socket.gets.chomp.to_i
     end
 
     def username username
         @username = username
         @socket.puts username
-        return socket.gets.chomp.to_i
+        return @socket.gets.chomp.to_i
     end
 
     def send_request message

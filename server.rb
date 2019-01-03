@@ -27,15 +27,15 @@ class Server
                 conn.puts "1"
 
                 # Probably won't work vvv
-                until @connected_clients[username = conn.gets.chomp.to_sym] == nil
+                until @connected_clients[(username = conn.gets.chomp).to_sym] == nil && username.length > 0
                     puts "[LOG]: Connection failed: #{username}. Info: #{conn}"
                     conn.puts "0"
                 end
                 conn.puts "1"
 
                 puts "[LOG]: Connection established: #{username}. Info: #{conn}"
-                @connected_clients[username] = conn
-                conn.puts "Connection established: #{username}. Info: #{conn}, pray for good RNG..."
+                @connected_clients[username.to_sym] = conn
+                conn.puts "Connection established: #{username}. Info: #{conn}\n    pray for good RNG...\n---------------------"
 
                 begin_rolling(username, conn)
             end
@@ -44,13 +44,15 @@ class Server
 
     def begin_rolling(username, conn)
         loop do
+            break if conn.nil?
+            
             message = conn.gets.chomp
             roll_info = roll(message)
 
-            if roll_info == "Invalid request"
+            if roll_info == "Invalid request\n---------------------"
                 conn.puts roll_info
             else
-                put_string = "#{username}:\n\t#{message}\n\t#{roll_info}\n---------------------"
+                put_string = "#{username}:\n    #{message}\n    #{roll_info}\n---------------------"
                 puts "[MSG]: Incoming\n#{put_string}"
                 (@connected_clients).keys.each { |client| @connected_clients[client].puts "#{put_string}" }
             end
@@ -72,7 +74,6 @@ if __FILE__ == $0
     password = ARGV[2] if ARGV == 3
 
     begin
-        puts "#{sock_addr}, #{sock_port}"
         server = TCPServer.open(sock_addr, sock_port)
     rescue SocketError => e
         puts "Error: #{e.message}"
